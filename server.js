@@ -2,25 +2,13 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
-const fs = require('fs');
+const Redis = require('ioredis');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// مسار ملف تخزين العدد
-const countFilePath = path.join(__dirname, 'dislike-count.txt');
-
-// قراءة العدد من الملف أو إنشاء ملف جديد إذا لم يكن موجوداً
-let dislikeCount = 0;
-try {
-    if (fs.existsSync(countFilePath)) {
-        dislikeCount = parseInt(fs.readFileSync(countFilePath, 'utf8')) || 0;
-    } else {
-        fs.writeFileSync(countFilePath, '0');
-    }
-} catch (error) {
-    console.error('Error reading count file:', error);
-}
+// إعداد Redis
+const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
 
 // Middleware
 app.use(cors({
@@ -32,22 +20,21 @@ app.use(bodyParser.json());
 app.use(express.static('content'));
 
 // Routes
-app.get('/dislike/count', (req, res) => {
+app.get('/dislike/count', async (req, res) => {
     try {
-        res.json({ count: dislikeCount });
+        const count = await redis.get('dislikeCount') || '0';
+        res.json({ count: parseInt(count) });
     } catch (error) {
         console.error('Error getting count:', error);
         res.status(500).json({ error: 'Server error while getting count' });
     }
 });
 
-app.post('/dislike/increment', (req, res) => {
+app.post('/dislike/increment', async (req, res) => {
     try {
-        dislikeCount++;
-        // حفظ العدد في الملف
-        fs.writeFileSync(countFilePath, dislikeCount.toString());
-        console.log('Updated dislike count:', dislikeCount);
-        res.json({ count: dislikeCount });
+        const count = await redis.incr('dislikeCount');
+        console.log('Updated dislike count:', count);
+        res.json({ count: parseInt(count) });
     } catch (error) {
         console.error('Error incrementing count:', error);
         res.status(500).json({ error: 'Server error while incrementing count' });
