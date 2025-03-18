@@ -1,31 +1,26 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const mongoose = require('mongoose');
-const Counter = require('./models/Counter');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// اتصال MongoDB مع معالجة الأخطاء
-mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://your_mongodb_uri', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-}).then(() => {
-    console.log('Connected to MongoDB successfully');
-}).catch((err) => {
-    console.error('MongoDB connection error:', err);
-});
+// مسار ملف تخزين العدد
+const countFilePath = path.join(__dirname, 'dislike-count.txt');
 
-// معالجة أخطاء اتصال MongoDB
-mongoose.connection.on('error', err => {
-    console.error('MongoDB connection error:', err);
-});
-
-mongoose.connection.on('disconnected', () => {
-    console.log('MongoDB disconnected');
-});
+// قراءة العدد من الملف أو إنشاء ملف جديد إذا لم يكن موجوداً
+let dislikeCount = 0;
+try {
+    if (fs.existsSync(countFilePath)) {
+        dislikeCount = parseInt(fs.readFileSync(countFilePath, 'utf8')) || 0;
+    } else {
+        fs.writeFileSync(countFilePath, '0');
+    }
+} catch (error) {
+    console.error('Error reading count file:', error);
+}
 
 // Middleware
 app.use(cors({
@@ -37,29 +32,22 @@ app.use(bodyParser.json());
 app.use(express.static('content'));
 
 // Routes
-app.get('/dislike/count', async (req, res) => {
+app.get('/dislike/count', (req, res) => {
     try {
-        let counter = await Counter.findOne({ name: 'dislikes' });
-        if (!counter) {
-            counter = await Counter.create({ name: 'dislikes', count: 0 });
-        }
-        console.log('Current dislike count:', counter.count);
-        res.json({ count: counter.count });
+        res.json({ count: dislikeCount });
     } catch (error) {
         console.error('Error getting count:', error);
         res.status(500).json({ error: 'Server error while getting count' });
     }
 });
 
-app.post('/dislike/increment', async (req, res) => {
+app.post('/dislike/increment', (req, res) => {
     try {
-        let counter = await Counter.findOneAndUpdate(
-            { name: 'dislikes' },
-            { $inc: { count: 1 } },
-            { new: true, upsert: true }
-        );
-        console.log('Updated dislike count:', counter.count);
-        res.json({ count: counter.count });
+        dislikeCount++;
+        // حفظ العدد في الملف
+        fs.writeFileSync(countFilePath, dislikeCount.toString());
+        console.log('Updated dislike count:', dislikeCount);
+        res.json({ count: dislikeCount });
     } catch (error) {
         console.error('Error incrementing count:', error);
         res.status(500).json({ error: 'Server error while incrementing count' });
