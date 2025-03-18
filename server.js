@@ -1,32 +1,48 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const path = require('path');
+const mongoose = require('mongoose');
+const Counter = require('./models/Counter');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
+// اتصال MongoDB
+mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://your_mongodb_uri', {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+});
+
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, 'content')));
-
-// Store dislike count in memory (can be replaced with a database)
-let dislikeCount = 0;
+app.use(express.static('content'));
 
 // Routes
-app.get('/dislike/count', (req, res) => {
-    res.json({ count: dislikeCount });
+app.get('/dislike/count', async (req, res) => {
+    try {
+        let counter = await Counter.findOne({ name: 'dislikes' });
+        if (!counter) {
+            counter = await Counter.create({ name: 'dislikes', count: 0 });
+        }
+        res.json({ count: counter.count });
+    } catch (error) {
+        res.status(500).json({ error: 'خطأ في الخادم' });
+    }
 });
 
-app.post('/dislike/increment', (req, res) => {
+app.post('/dislike/increment', async (req, res) => {
     try {
-        dislikeCount++;
-        console.log('Dislike count incremented:', dislikeCount);
-        res.json({ success: true, count: dislikeCount });
+        let counter = await Counter.findOne({ name: 'dislikes' });
+        if (!counter) {
+            counter = await Counter.create({ name: 'dislikes', count: 1 });
+        } else {
+            counter.count += 1;
+            await counter.save();
+        }
+        res.json({ count: counter.count });
     } catch (error) {
-        console.error('Error incrementing count:', error);
-        res.status(500).json({ error: 'Failed to increment count' });
+        res.status(500).json({ error: 'خطأ في الخادم' });
     }
 });
 
