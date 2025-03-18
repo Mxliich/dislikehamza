@@ -1,0 +1,27 @@
+{
+    "version": 2,
+    "builds": [
+        {
+            "src": "server.js",
+            "use": "@vercel/node"
+        },
+        {
+            "src": "content/**",
+            "use": "@vercel/static"
+        }
+    ],
+    "routes": [
+        {
+            "src": "/dislike/count",
+            "dest": "server.js"
+        },
+        {
+            "src": "/dislike/increment",
+            "dest": "server.js"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "/content/$1"
+        }
+    ]
+} 
