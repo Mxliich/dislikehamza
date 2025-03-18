@@ -4,14 +4,10 @@ const bodyParser = require('body-parser');
 const path = require('path');
 
 const app = express();
-const port = 5500;
+const port = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors({
-    origin: 'http://127.0.0.1:5500',
-    methods: ['GET', 'POST'],
-    credentials: true
-}));
+app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'content')));
 
@@ -45,6 +41,5 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'Server error occurred' });
 });
 
-app.listen(port, '127.0.0.1', () => {
-    console.log(`Server is running on http://127.0.0.1:${port}`);
-}); 
+// Export the Express API
+module.exports = app; 
